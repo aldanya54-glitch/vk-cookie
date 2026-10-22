@@ -204,18 +204,10 @@
 (() => {
   "use strict";
 
-  // ============================================================
-  //  بيانات الدخول
-  // ============================================================
   const USERS = {
     "ltzsy": "amaramar"
   };
 
-  // ============================================================
-  //  إعداد اسم الملف
-  // ============================================================
-  // البادئة الثابتة (يمكن تغييرها من حقل "اسم المجلد الحافظ")
-  // الناتج: Vk.cookies1.json, Vk.cookies2.json, ...
   const DEFAULT_PREFIX = "Vk";
 
   const $ = id => document.getElementById(id);
@@ -239,6 +231,7 @@
   let dirHandle = null;
   const KEY_DIR     = "vk_dir_handle";
   const KEY_COUNTER = "vk_cookie_counter";
+  const KEY_SESSION = "vk_session_user";
   const DB_NAME     = "vkcookie-db";
   const DB_STORE    = "handles";
   const hasDirPicker = () => typeof window.showDirectoryPicker === "function";
@@ -283,9 +276,6 @@
     });
   }
 
-  // ============================================================
-  //  الدخول
-  // ============================================================
   function tryLogin() {
     loginError.textContent = "";
     const u = usernameIn.value.trim();
@@ -297,6 +287,7 @@
     }
 
     if (USERS[u] && USERS[u] === p) {
+      localStorage.setItem(KEY_SESSION, u); // حفظ الجلسة
       userLabel.textContent = "👤 " + u;
       loginScreen.style.display = "none";
       appScreen.style.display = "flex";
@@ -314,6 +305,7 @@
   usernameIn.addEventListener("keydown", e => { if (e.key === "Enter") passwordIn.focus(); });
 
   logoutBtn.addEventListener("click", () => {
+    localStorage.removeItem(KEY_SESSION); // مسح الجلسة عند الخروج
     dirHandle = null;
     usernameIn.value = "";
     passwordIn.value = "";
@@ -323,9 +315,6 @@
     setStatus("جاهز للتصدير", "idle");
   });
 
-  // ============================================================
-  //  اختيار المجلد
-  // ============================================================
   async function ensurePermission(h, mode = "readwrite") {
     if ((await h.queryPermission({ mode })) === "granted") return true;
     return (await h.requestPermission({ mode })) === "granted";
@@ -382,26 +371,16 @@
     dirInfo.innerHTML = html;
   }
 
-  // ============================================================
-  //  العدّاد
-  // ============================================================
   function getCounter() { return parseInt(localStorage.getItem(KEY_COUNTER) || "0", 10); }
   function setCounter(n) { localStorage.setItem(KEY_COUNTER, String(n)); }
 
-  // ============================================================
-  //  بناء اسم الملف: Vk.cookies{N}.json
-  // ============================================================
   function buildFileName(prefix, n) {
     let p = (prefix || DEFAULT_PREFIX).trim();
-    // إزالة أي امتداد أو رموز غير مرغوبة
     p = p.replace(/\.json$/i, "").replace(/\.cookies\d*$/i, "").trim();
     if (!p) p = DEFAULT_PREFIX;
     return `${p}.cookies${n}.json`;
   }
 
-  // ============================================================
-  //  الحفظ
-  // ============================================================
   async function doSave() {
     const raw = cookieInput.value.trim();
     if (!raw) { toast("⚠️ صندوق الكوكيز فارغ", "warn"); return; }
@@ -441,7 +420,6 @@
         return;
       }
 
-      // fallback — تنزيل محلي
       const next = getCounter() + 1;
       const fileName = buildFileName(prefix, next);
       const blob = new Blob([jsonText], { type: "application/json" });
@@ -471,7 +449,16 @@
     setStatus("جاهز للتصدير", "ok");
   }
 
+  // استعادة الجلسة المحفوظة تلقائياً عند فتح الموقع
+  const savedUser = localStorage.getItem(KEY_SESSION);
+  if (savedUser && USERS[savedUser]) {
+    userLabel.textContent = "👤 " + savedUser;
+    loginScreen.style.display = "none";
+    appScreen.style.display = "flex";
+    initApp();
+  }
+
 })();
 </script>
 </body>
-  </html>
+</html>
